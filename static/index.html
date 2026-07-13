@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cascade</title>
+<style>
+  :root { --bg:#0d1522; --panel:#141d2e; --line:#26334d; --text:#e8edf6; --muted:#8f9fbd; --signal:#4fd1c5; --amber:#f2b45c; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; display:flex; flex-direction:column; align-items:center; gap:18px; padding:28px 16px; min-height:100vh; }
+  h1 { font-size:1.5rem; letter-spacing:-.01em; }
+  h1 span { color:var(--signal); }
+  p.sub { color:var(--muted); font-size:.9rem; margin-top:-10px; }
+  #canvas { image-rendering:pixelated; border:1px solid var(--line); border-radius:8px; cursor:crosshair; background:#0a111c; width:min(90vw,512px); height:min(90vw,512px); }
+  .palette { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .swatch { width:26px; height:26px; border-radius:6px; border:2px solid transparent; cursor:pointer; }
+  .swatch.active { border-color:var(--text); }
+  .chaos { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+  .chaos button { background:var(--panel); color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:7px 12px; font-size:.82rem; font-family:ui-monospace,monospace; cursor:pointer; }
+  .chaos button:hover { color:var(--amber); border-color:var(--amber); }
+  .stats { color:var(--muted); font-family:ui-monospace,monospace; font-size:.8rem; }
+</style>
+</head>
+<body>
+  <h1><span>Cascade</span> — paint together</h1>
+  <p class="sub">Click to paint a pixel. Everyone shares one canvas.</p>
+  <canvas id="canvas" width="64" height="64"></canvas>
+  <div class="palette" id="palette"></div>
+  <div class="chaos">
+    <button onclick="chaos('latency')">inject latency</button>
+    <button onclick="chaos('error')">inject errors</button>
+    <button onclick="chaos('clear')">reset chaos</button>
+  </div>
+  <div class="stats" id="stats">loading…</div>
+
+<script>
+  const cv = document.getElementById('canvas');
+  const ctx = cv.getContext('2d');
+  const COLORS = ['#ff4d4d','#f2b45c','#ffe14d','#4fd1c5','#4d8cff','#b45cff','#ffffff','#0a111c'];
+  let current = COLORS[3];
+
+  // palette
+  const pal = document.getElementById('palette');
+  COLORS.forEach((c, i) => {
+    const s = document.createElement('div');
+    s.className = 'swatch' + (i === 3 ? ' active' : '');
+    s.style.background = c;
+    s.onclick = () => { current = c; document.querySelectorAll('.swatch').forEach(e => e.classList.remove('active')); s.classList.add('active'); };
+    pal.appendChild(s);
+  });
+
+  async function draw() {
+    const r = await fetch('/api/canvas'); const d = await r.json();
+    ctx.fillStyle = '#0a111c'; ctx.fillRect(0, 0, 64, 64);
+    for (const p of d.pixels) { ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 1, 1); }
+  }
+
+  cv.addEventListener('click', async (e) => {
+    const rect = cv.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / rect.width * 64);
+    const y = Math.floor((e.clientY - rect.top) / rect.height * 64);
+    await fetch('/api/paint', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ x, y, color: current }) });
+    draw();
+  });
+
+  // Chaos buttons — in Lite these hit a sandboxed local endpoint (or are a no-op if not present).
+  // In Cascade Full they trigger real, blast-radius-limited Chaos Mesh experiments (Senior 04).
+  async function chaos(mode) {
+    try { await fetch('/api/chaos?mode=' + mode, { method: 'POST' }); } catch (e) {}
+    alert('Chaos "' + mode + '" requested. (Lite is a demo stub; Full wires this to Chaos Mesh.)');
+  }
+
+  async function stats() {
+    try {
+      const t = await (await fetch('/metrics')).text();
+      const total = (t.match(/cascade_paints_total (\d+)/) || [])[1] || 0;
+      const err = (t.match(/cascade_paint_errors_total (\d+)/) || [])[1] || 0;
+      document.getElementById('stats').textContent = `paints: ${total}  ·  errors: ${err}`;
+    } catch (e) {}
+  }
+
+  draw(); stats();
+  setInterval(draw, 1000);   // poll (Lite). Full uses WebSockets for realtime.
+  setInterval(stats, 2000);
+</script>
+</body>
+</html>
