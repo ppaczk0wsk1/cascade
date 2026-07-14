@@ -1,0 +1,42 @@
+name: deploy-aws
+on:
+  push: { branches: [main] }
+
+permissions:
+  id-token: write # REQUIRED for OIDC
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPO: ${{ vars.ECR_REPO }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push (tagged by commit SHA)
+        run: |
+          IMAGE=${{ steps.ecr.outputs.registry }}/$ECR_REPO:${{ github.sha }}
+          docker build -t $IMAGE sample-app/lite
+          docker push $IMAGE
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy to ECS Express Mode
+        uses: aws-actions/amazon-ecs-deploy-express-service@v1
+        with:
+          service-name: ${{ env.ECS_SERVICE }}
+          image: ${{ env.IMAGE }}
+          execution-role-arn: ${{ secrets.EXECUTION_ROLE_ARN }}
+          infrastructure-role-arn: ${{ secrets.INFRA_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
