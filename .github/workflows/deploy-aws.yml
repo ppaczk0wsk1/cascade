@@ -44,4 +44,3 @@ jobs:
           min-task-count: 1
           max-task-count: 3
           container-port: 8080
-          health-check-path: /healthz
