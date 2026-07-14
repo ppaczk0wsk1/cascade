@@ -40,3 +40,6 @@ jobs:
           execution-role-arn: ${{ secrets.EXECUTION_ROLE_ARN }}
           infrastructure-role-arn: ${{ secrets.INFRA_ROLE_ARN }}
           region: ${{ env.AWS_REGION }}
+          health-check-path: /healthz
+          min-task-count: 1
+          max-task-count: 3
