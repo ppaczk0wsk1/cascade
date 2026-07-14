@@ -28,7 +28,7 @@ jobs:
       - name: Build and push (tagged by commit SHA)
         run: |
           IMAGE=${{ steps.ecr.outputs.registry }}/$ECR_REPO:${{ github.sha }}
-          docker build -t $IMAGE sample-app/lite
+          docker build -t $IMAGE .
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
