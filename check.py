@@ -5,7 +5,7 @@ import time
 import urllib.request
 
 TARGETS = {
-    "cascade": "https://ca-15930cf9644a4d419696539d17838439.ecs.eu-central-1.on.aws/healthz"
+    "cascade": "https://ca-8e6efac6962e40569ba757d0195679f6.ecs.eu-central-1.on.aws/healthz"
 }
 results = []
 
