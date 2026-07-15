@@ -1,0 +1,21 @@
+name: pulse
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # every 15 minutes (GitHub's minimum; expect drift)
+  workflow_dispatch: # manual run button in the Actions tab
+
+permissions:
+  contents: write # needed so the job can commit history.json back
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python check.py
+        env:
+          WEBHOOK: ${{ secrets.WEBHOOK }}
+      - run: |
+          git config user.name pulse-bot && git config user.email bot@ci
+          git add history.json && git commit -m "pulse" && git push || true
