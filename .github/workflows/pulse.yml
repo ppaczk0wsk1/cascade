@@ -1,8 +1,6 @@
 name: pulse
 
 on:
-  schedule:
-    - cron: "*/15 * * * *" # every 15 minutes (GitHub's minimum; expect drift)
   workflow_dispatch: # manual run button in the Actions tab
 
 permissions:
